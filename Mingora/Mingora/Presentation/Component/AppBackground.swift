@@ -18,7 +18,26 @@ struct AppBackground: View {
     @Environment(AppState.self) private var appState
     
     var body: some View {
-        backgroundView
+        ZStack(alignment: .topLeading) {
+            backgroundView
+
+            // 只要当前有背景且主题图 URL 有效，就显示主题图；不限定为视频背景。
+            if bgType != .none,
+               let themeBgUrl,
+               let themeURL = URL(string: themeBgUrl) {
+                KFImage(themeURL)
+                    .resizable()
+                    .placeholder {
+                        Color.clear
+                    }
+                    .fade(duration: 0.2)
+                    .scaledToFit()
+                    .padding(.top, 24)
+                    // GameSelector occupies the first 286pt on the left.
+                    // Keep the theme to its right with a visible gap.
+                    .padding(.leading, 310)
+            }
+        }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             .ignoresSafeArea()
@@ -45,25 +64,7 @@ struct AppBackground: View {
             }
         case .video:
             if let url = videoBgUrl {
-                ZStack(alignment: .topLeading) {
-                    VideoPlayer(videoLocalPath: URL(filePath: url))
-
-                    if let themeBgUrl,
-                       let themeURL = URL(string: themeBgUrl) {
-                        KFImage(themeURL)
-                            .resizable()
-                            .placeholder {
-                                Color.clear
-                            }
-                            .fade(duration: 0.2)
-                            .scaledToFit()
-                            //.frame(width: 220, height: 80)
-                            .padding(.top, 24)
-                            // GameSelector occupies the first 286pt on the left.
-                            // Keep the theme to its right with a visible gap.
-                            .padding(.leading, 310)
-                    }
-                }
+                VideoPlayer(videoLocalPath: URL(filePath: url))
             } else {
                 Color.black
             }
@@ -148,7 +149,10 @@ struct AppBackground: View {
                 fallbackImageUrl: firstBackground.background.url
             )
         } else {
-            setImageBackground(url: firstBackground.background.url)
+            setImageBackground(
+                url: firstBackground.background.url,
+                themeImageUrl: firstBackground.theme.url
+            )
         }
     }
     
@@ -159,6 +163,12 @@ struct AppBackground: View {
         themeImageUrl: String,
         fallbackImageUrl: String
     ) async {
+        // 转码期间先显示图片和主题图；转码成功后再切换到视频。
+        setImageBackground(
+            url: fallbackImageUrl,
+            themeImageUrl: themeImageUrl
+        )
+
         do {
             let bgvPath = try await BackgroundService.shared.cacheVideoBackground(
                 gameId: gameId,
@@ -173,19 +183,25 @@ struct AppBackground: View {
                 themeBgUrl = themeImageUrl
                 bgType = .video
             } else {
-                setImageBackground(url: fallbackImageUrl)
+                setImageBackground(
+                    url: fallbackImageUrl,
+                    themeImageUrl: themeImageUrl
+                )
             }
         } catch {
             // 取消、切换游戏或视图销毁时，不能再写回旧请求的 fallback。
             guard !Task.isCancelled, gameId == currentSelectedGame else { return }
-            setImageBackground(url: fallbackImageUrl)
+            setImageBackground(
+                url: fallbackImageUrl,
+                themeImageUrl: themeImageUrl
+            )
         }
     }
     
     @MainActor
-    private func setImageBackground(url: String) {
+    private func setImageBackground(url: String, themeImageUrl: String? = nil) {
         videoBgUrl = nil
-        themeBgUrl = nil
+        themeBgUrl = themeImageUrl
         imageBgUrl = url
         bgType = .image
     }
@@ -209,7 +225,7 @@ struct AppBackground: View {
 
 }
 
-private enum BackgroundType {
+private enum BackgroundType: Equatable {
     case image
     case video
     case none
