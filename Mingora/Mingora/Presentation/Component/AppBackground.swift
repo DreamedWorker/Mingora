@@ -21,7 +21,7 @@ struct AppBackground: View {
         ZStack(alignment: .topLeading) {
             backgroundView
 
-            // 只要当前有背景且主题图 URL 有效，就显示主题图；不限定为视频背景。
+            // 只要当前有背景且主题图 URL 有效，就显示版本主题图
             if bgType != .none,
                let themeBgUrl,
                let themeURL = URL(string: themeBgUrl) {
@@ -31,11 +31,7 @@ struct AppBackground: View {
                         Color.clear
                     }
                     .fade(duration: 0.2)
-                    .scaledToFit()
-                    .padding(.top, 24)
-                    // GameSelector occupies the first 286pt on the left.
-                    // Keep the theme to its right with a visible gap.
-                    .padding(.leading, 310)
+                    //.scaledToFit()
             }
         }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -142,20 +142,19 @@ struct GameSelector: View {
             }
 
             ScrollView {
-                Button(action: {}) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "plus.app")
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                        Text("添加游戏")
-                        Spacer(minLength: 6)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 8)
-                
                 LazyVStack(spacing: 4) {
+                    Button(action: {}) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "plus.app")
+                                .resizable()
+                                .frame(width: 36, height: 36)
+                            Text("添加游戏")
+                            Spacer(minLength: 6)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 8)
                     ForEach(games, id: \.id) { game in
                         gameRow(game)
                     }

@@ -14,15 +14,18 @@ struct HomeView: View {
         if !appState.gameInfos.isEmpty && appState.lastOpenedGame != nil {
             ZStack(alignment: .topLeading) {
                 AppBackground(currentSelectedGame: appState.lastOpenedGame!)
-                
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topTrailing) {
                 GameSelector(
                     games: appState.gameInfos,
                     currentGameID: appState.lastOpenedGame!,
                     onSelect: appState.setLastOpenedGame(gameId:),
                     updateGameInfo: appState.updateOrInsertGameInfo(_:)
                 )
+                .padding(.top, 24)
+                .padding(.trailing, 24)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
