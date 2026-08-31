@@ -1,0 +1,27 @@
+### 构建系统和相关内容 ###
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+.tmp/
+
+### IntelliJ IDEA ###
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/libraries/
+*.iws
+*.iml
+*.ipr
+
+### Kotlin ###
+.kotlin
+
+### Mac OS 和 Xcode ###
+.DS_Store
+Mingora/Mingora.xcodeproj/xcuserdata/
+Mingora/Mingora.xcodeproj/project.xcworkspace/xcuserdata/

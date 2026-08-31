@@ -1,0 +1,224 @@
+{
+  "sourceLanguage" : "zh-Hans",
+  "strings" : {
+    "FFmpeg" : {
+      "shouldTranslate" : false
+    },
+    "Mingora 需要下载并配置 Wine 和相关文件。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mingora needs to download and configure Wine and related files."
+          }
+        }
+      }
+    },
+    "中国大陆" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "China Mainland"
+          }
+        }
+      }
+    },
+    "主要游玩的服务器所在地" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Game server location"
+          }
+        }
+      }
+    },
+    "使用镜像站下载环境文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use mirror site to download"
+          }
+        }
+      }
+    },
+    "切换游戏" : {
+
+    },
+    "安装命令：brew install ffmpeg" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try to install ffmpeg by homebrew."
+          }
+        }
+      }
+    },
+    "完成并进入主页" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "已检测到 FFmpeg，视频背景功能可能可用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FFmpeg has been detected, video background function may be available."
+          }
+        }
+      }
+    },
+    "开始使用" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start"
+          }
+        }
+      }
+    },
+    "当前游戏" : {
+
+    },
+    "未检测到 FFmpeg，视频背景功能可能无法使用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FFmpeg not detected, video background function may not be available."
+          }
+        }
+      }
+    },
+    "欢迎使用 Mingora" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to use Mingora"
+          }
+        }
+      }
+    },
+    "正在检查安装状态…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking status"
+          }
+        }
+      }
+    },
+    "正在配置…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configuring…"
+          }
+        }
+      }
+    },
+    "海外地区" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overseas"
+          }
+        }
+      }
+    },
+    "添加游戏" : {
+
+    },
+    "点击切换" : {
+
+    },
+    "点击确认后开始下载。下载过程中请不要退出应用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click to download, and keep Mingora running during downloading."
+          }
+        }
+      }
+    },
+    "环境配置完成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configuration has been done."
+          }
+        }
+      }
+    },
+    "确认并开始下载" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm & Download"
+          }
+        }
+      }
+    },
+    "选择游戏" : {
+
+    },
+    "配置运行环境" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare the environment"
+          }
+        }
+      }
+    },
+    "重新检测" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redetect"
+          }
+        }
+      }
+    },
+    "重试下载" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
+    "首次使用前需要先配置运行环境。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Environment configuration must be done during the first opening."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.2"
+}
