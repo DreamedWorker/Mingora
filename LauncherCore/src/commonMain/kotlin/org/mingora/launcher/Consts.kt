@@ -10,6 +10,7 @@ internal object Consts {
     lateinit var userLanguage: String
     val appRootDir = FileKit.filesDir
     val appData = appRootDir.resolve("data")
+    val appCache = appRootDir.resolve("cache")
 
     val downloadDir = appRootDir.resolve("downloads")
     val wineBinaryDir = appRootDir.resolve("wine")
@@ -32,6 +33,9 @@ internal object Consts {
         }
         if (!appData.exists()) {
             appData.createDirectories()
+        }
+        if (!appCache.exists()) {
+            appCache.createDirectories()
         }
     }
 }

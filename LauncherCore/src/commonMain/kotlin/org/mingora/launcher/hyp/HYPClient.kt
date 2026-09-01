@@ -11,6 +11,7 @@ import org.mingora.launcher.Consts
 import org.mingora.launcher.core.GameId
 import org.mingora.launcher.core.HYPLauncherId
 import org.mingora.launcher.core.HYPLauncherId.Companion.isBiliLauncher
+import org.mingora.launcher.core.SemanticVersion
 import org.mingora.launcher.core.exception.HYPApiException
 import org.mingora.launcher.hyp.models.GameBackground
 import org.mingora.launcher.hyp.models.GameBackgroundInfoWrapper
@@ -122,7 +123,11 @@ internal class HYPClient(private val httpClient: HttpClient) {
      * @param gameBranch 前置请求得到 - 清单分支
      * @see [HYPClient.getSingleGameBranch]
      * */
-    suspend fun getGameChunkBuild(gameInfo: SimpleGameEntry, gameBranch: GameBranch.Main): Result<GameSophonChunkBuild> {
+    suspend fun getGameChunkBuild(
+        gameInfo: SimpleGameEntry,
+        gameBranch: GameBranch.Main,
+        version: SemanticVersion? = null
+    ): Result<GameSophonChunkBuild> {
         val prefix = when {
             GameId.isCNServer(gameInfo.id) -> "https://downloader-api.mihoyo.com/downloader/sophon_chunk/api/getBuild?"
             GameId.isOSServer(gameInfo.id) -> "https://sg-downloader-api.hoyoverse.com/downloader/sophon_chunk/api/getBuild?"
@@ -134,6 +139,9 @@ internal class HYPClient(private val httpClient: HttpClient) {
             append("package_id=${gameBranch.packageID}")
             append("&")
             append("password=${gameBranch.password}")
+            if (version != null) {
+                append("&version=$version")
+            }
             toString()
         }
         val result = commonGet<GameSophonChunkBuild>(url).getOrElse { return Result.failure(it) }

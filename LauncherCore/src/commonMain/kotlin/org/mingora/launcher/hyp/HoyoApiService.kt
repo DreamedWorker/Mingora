@@ -1,10 +1,9 @@
-package org.mingora.launcher.service
+package org.mingora.launcher.hyp
 
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mingora.launcher.core.GameId
 import org.mingora.launcher.core.HYPLauncherId
-import org.mingora.launcher.hyp.HYPClient
 import org.mingora.launcher.hyp.models.GameBackground
 import org.mingora.launcher.hyp.models.GameContent
 import org.mingora.launcher.hyp.models.GameInfo

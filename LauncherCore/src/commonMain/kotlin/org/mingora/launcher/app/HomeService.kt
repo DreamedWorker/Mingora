@@ -1,4 +1,4 @@
-package org.mingora.launcher.service
+package org.mingora.launcher.app
 
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.whyoleg.cryptography.CryptographyProvider
@@ -10,6 +10,7 @@ import org.mingora.launcher.core.GameId
 import org.mingora.launcher.core.HYPLauncherId
 import org.mingora.launcher.core.preference.LauncherPreference
 import org.mingora.launcher.core.preference.MAINLY_LAUNCHER
+import org.mingora.launcher.hyp.HoyoApiService
 import org.mingora.launcher.hyp.models.GameContent
 import org.mingora.launcher.hyp.models.GameInfo
 import kotlin.coroutines.cancellation.CancellationException

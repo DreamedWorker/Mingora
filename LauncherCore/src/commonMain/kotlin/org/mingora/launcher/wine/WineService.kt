@@ -1,11 +1,9 @@
-package org.mingora.launcher.service
+package org.mingora.launcher.wine
 
 import io.github.vinceglb.filekit.path
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mingora.launcher.Consts
-import org.mingora.launcher.wine.WineInstaller
-import org.mingora.launcher.wine.WineWrapper
 
 object WineService : KoinComponent {
     private val installer by inject<WineInstaller>()

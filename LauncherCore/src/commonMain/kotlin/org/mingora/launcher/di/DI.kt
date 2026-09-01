@@ -8,6 +8,7 @@ import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import org.mingora.launcher.core.util.FileDownloader
 import org.mingora.launcher.core.util.httpClient
+import org.mingora.launcher.core.zstd.ZstdStreamDecompressor
 import org.mingora.launcher.hyp.HYPClient
 import org.mingora.launcher.wine.WineInfEditor
 import org.mingora.launcher.wine.WineInstaller
@@ -18,6 +19,7 @@ internal val commonModule = module {
     single { Json { ignoreUnknownKeys = true } }
     single { createDataStore() }
     single { ProtoBuf {  } }
+    single { ZstdStreamDecompressor() }
     single { FileDownloader(get()) }
 }
 

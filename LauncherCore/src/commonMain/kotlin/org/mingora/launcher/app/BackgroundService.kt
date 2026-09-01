@@ -1,4 +1,4 @@
-package org.mingora.launcher.service
+package org.mingora.launcher.app
 
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.whyoleg.cryptography.CryptographyProvider
@@ -23,6 +23,7 @@ import org.mingora.launcher.core.GameId
 import org.mingora.launcher.core.preference.LauncherPreference
 import org.mingora.launcher.core.util.CommandExecutor
 import org.mingora.launcher.core.util.FileDownloader
+import org.mingora.launcher.hyp.HoyoApiService
 import org.mingora.launcher.hyp.models.GameBackground
 import kotlin.experimental.ExperimentalNativeApi
 
