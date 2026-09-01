@@ -1,0 +1,9 @@
+[submodule "third_party/zstd"]
+	path = third_party/zstd
+	url = https://github.com/facebook/zstd.git
+[submodule "third_party/HDiffPatch"]
+	path = third_party/HDiffPatch
+	url = https://github.com/sisong/HDiffPatch.git
+[submodule "third_party/bzip2"]
+	path = third_party/bzip2
+	url = https://github.com/sisong/bzip2.git
