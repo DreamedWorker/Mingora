@@ -56,7 +56,7 @@ internal class HYPClient(private val httpClient: HttpClient) {
      * @param gameId 游戏ID枚举值
      * */
     suspend fun getGameContent(gameId: GameId, launcherId: HYPLauncherId): Result<GameContent> {
-        val url = "${buildUrl("getGameContent", launcherId)}&gameId=${gameId.id}"
+        val url = "${buildUrl("getGameContent", launcherId)}&game_id=${gameId.id}"
         val result = commonGet<GameContentWrapper>(url).getOrElse { return Result.failure(it) }
         return Result.success(result.content)
     }

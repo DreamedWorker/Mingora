@@ -14,6 +14,7 @@ struct HomeView: View {
         if !appState.gameInfos.isEmpty && appState.lastOpenedGame != nil {
             ZStack(alignment: .topLeading) {
                 AppBackground(currentSelectedGame: appState.lastOpenedGame!)
+                GameNotice(currentGame: appState.lastOpenedGame!)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(alignment: .topTrailing) {

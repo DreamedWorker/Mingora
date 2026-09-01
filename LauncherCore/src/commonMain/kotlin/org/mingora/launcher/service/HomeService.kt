@@ -10,6 +10,7 @@ import org.mingora.launcher.core.GameId
 import org.mingora.launcher.core.HYPLauncherId
 import org.mingora.launcher.core.preference.LauncherPreference
 import org.mingora.launcher.core.preference.MAINLY_LAUNCHER
+import org.mingora.launcher.hyp.models.GameContent
 import org.mingora.launcher.hyp.models.GameInfo
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -72,6 +73,11 @@ object HomeService : KoinComponent {
         } else {
             return neoInfo
         }
+    }
+
+    @Throws(Exception::class, CancellationException::class)
+    suspend fun getGameNotice(gameId: GameId): GameContent {
+        return HoyoApiService.getGameContent(gameId)
     }
 
     private suspend fun cacheGameInfo(gameInfo: GameInfo) {

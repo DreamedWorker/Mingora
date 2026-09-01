@@ -14,6 +14,7 @@ class AppState: Identifiable {
     var gameInfos: [GameInfo] = []
     var lastOpenedGame: String? = nil
     var mainlyLauncher: HYPLauncherId?
+    var gameNews: [GameContent] = []
     
     func setupBasicData() {
         Task { @MainActor in
@@ -64,6 +65,12 @@ class AppState: Identifiable {
             }
         } else {
             gameInfos.append(neoInfo)
+        }
+    }
+    
+    func cacheGameNews(_ content: GameContent) {
+        if !gameNews.contains(where: { $0.game.id == content.game.id }) {
+            gameNews.append(content)
         }
     }
 }
