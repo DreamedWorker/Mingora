@@ -45,7 +45,14 @@
       }
     },
     "切换游戏" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch"
+          }
+        }
+      }
     },
     "安装命令：brew install ffmpeg" : {
       "localizations" : {
@@ -88,7 +95,14 @@
       }
     },
     "当前游戏" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current"
+          }
+        }
+      }
     },
     "未检测到 FFmpeg，视频背景功能可能无法使用。" : {
       "localizations" : {
@@ -141,10 +155,34 @@
       }
     },
     "添加游戏" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a new game"
+          }
+        }
+      }
+    },
+    "游戏截屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Screenshots"
+          }
+        }
+      }
     },
     "点击切换" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch"
+          }
+        }
+      }
     },
     "点击确认后开始下载。下载过程中请不要退出应用。" : {
       "localizations" : {
@@ -176,8 +214,25 @@
         }
       }
     },
+    "软件设置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
     "选择游戏" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a game"
+          }
+        }
+      }
     },
     "配置运行环境" : {
       "localizations" : {

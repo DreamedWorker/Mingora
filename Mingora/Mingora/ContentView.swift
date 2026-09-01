@@ -15,9 +15,7 @@ struct ContentView: View {
         if appState.isFirstOpen {
             WizardView()
         } else {
-            Group {
-                HomeView()
-            }
+            HomeView()
         }
     }
 }
