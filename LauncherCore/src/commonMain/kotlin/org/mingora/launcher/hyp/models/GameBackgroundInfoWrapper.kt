@@ -7,7 +7,7 @@ import org.mingora.launcher.hyp.models.common.SimpleIconEntry
 import org.mingora.launcher.hyp.models.common.SimpleImageEntry
 
 @Serializable
-data class GameBackgroundInfoWrapper (
+internal data class GameBackgroundInfoWrapper (
     @SerialName("game_info_list")
     val gameInfoList: List<GameBackground>
 )
