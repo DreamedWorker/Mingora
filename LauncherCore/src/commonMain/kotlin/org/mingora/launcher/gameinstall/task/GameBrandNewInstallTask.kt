@@ -4,6 +4,8 @@ import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.DelicateCryptographyApi
 import dev.whyoleg.cryptography.algorithms.MD5
 import io.github.vinceglb.filekit.PlatformFile
+import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -20,7 +22,7 @@ import org.mingora.launcher.hyp.models.GameConfig
 import org.mingora.launcher.hyp.models.GameSophonChunkBuild
 import org.mingora.launcher.hyp.proto.SophonManifestChunkMode
 
-@OptIn(ExperimentalSerializationApi::class)
+@OptIn(ExperimentalSerializationApi::class, ExperimentalAtomicApi::class)
 internal data class GameBrandNewInstallTask(
     override val installPath: PlatformFile,
     override val audioLanguage: GameAudioLanguage,
@@ -38,7 +40,10 @@ internal data class GameBrandNewInstallTask(
     val md5 = CryptographyProvider.Default.get(MD5).hasher()
 
     override var taskFiles = mutableListOf<TaskFile>()
-    var currentDownloadedBytes: Long = 0
+    private val currentDownloadedBytesAtomic = AtomicLong(0L)
+
+    val currentDownloadedBytes: Long
+        get() = currentDownloadedBytesAtomic.load()
     var totalDownloadedBytes: Long = 0
 
     override suspend fun prepareFiles() {
@@ -66,12 +71,14 @@ internal data class GameBrandNewInstallTask(
                     )
                 }
             }
-            totalDownloadedBytes += stats.uncompressedSize.toLong()
+            totalDownloadedBytes += stats.compressedSize.toLong()
         }
+        totalDownloadedBytes += channelSDK?.channelSDKPkg?.size?.toLong() ?: 0L
     }
 
     override fun increaseProgress(progress: Long) {
-        currentDownloadedBytes += progress
+        require(progress >= 0L) { "Progress increment must not be negative: $progress" }
+        currentDownloadedBytesAtomic.fetchAndAdd(progress)
     }
 
     override fun onSuccess() {

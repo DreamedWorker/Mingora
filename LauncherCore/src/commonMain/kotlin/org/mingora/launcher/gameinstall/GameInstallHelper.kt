@@ -32,7 +32,7 @@ internal class GameInstallHelper(
         // 跳过已存在的文件
         if (file.fullPath.exists() && file.fullPath.isRegularFile() && file.fullPath.size() == file.size &&
             (file.md5.isBlank() || fileMd5(file.fullPath) == file.md5.lowercase())) {
-            task.increaseProgress(file.size)
+            task.increaseProgress(file.chunks.sumOf { it.compressedSize })
             return
         }
 
@@ -49,7 +49,6 @@ internal class GameInstallHelper(
             val offset = offset1.coerceAtMost(output.size.toLong()).toInt()
             check(offset + uncompressed.size <= output.size) { "Chunk exceeds target file: ${file.nameWithRelativePath}" }
             uncompressed.copyInto(output, destinationOffset = offset)
-            task.increaseProgress(uncompressed.size.toLong())
         }
     }
 

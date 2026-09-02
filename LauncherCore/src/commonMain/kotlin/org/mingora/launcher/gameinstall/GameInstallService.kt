@@ -67,9 +67,6 @@ internal class GameInstallService(
         // 而当前仅 Genshin 需要下载 WPF 包，因此跳过该步骤。
         downloadGameChannelSDK(task)
         setGameConfigIni(task)
-
-        // -10 为特定值，仅用于在完成任务后传递
-        task.increaseProgress(-10L)
     }
 
     private suspend fun executeInstallTaskDownloadModeChunk(task: GameInstallTask) {
