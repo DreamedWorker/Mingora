@@ -9,6 +9,8 @@ import io.github.vinceglb.filekit.parent
 import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.sink
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.contentLength
@@ -95,6 +97,21 @@ class FileDownloader(
             if (error is CancellationException) {
                 throw error
             }
+            Result.failure(error)
+        }
+    }
+
+    /**
+     * 直接将目标下载到字节数组中，不写入文件系统
+     * */
+    suspend fun downloadDirectly(url: String): Result<ByteArray> {
+        return try {
+            val response = httpClient.get(url)
+            if (response.status.value !in 200..299) {
+                return Result.failure(IllegalStateException("HTTP ${response.status.value} while downloading $url"))
+            }
+            Result.success(response.body<ByteArray>())
+        } catch (error: Throwable) {
             Result.failure(error)
         }
     }
