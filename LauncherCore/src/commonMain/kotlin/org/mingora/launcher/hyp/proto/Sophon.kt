@@ -7,26 +7,29 @@ import kotlinx.serialization.protobuf.ProtoNumber
 // Chunk 模式游戏文件清单
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonChunkManifest(
+data class SophonManifestChunkMode(
     @ProtoNumber(1)
-    val chunks: List<SophonChunkFile> = emptyList(),
+    val chunks: List<SophonFileChunkMode> = emptyList(),
 )
 
-// Patch 更新模式游戏文件清单
+// Chunk 模式游戏文件
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonPatchManifest(
-    // 新版本所有文件
+data class SophonFileChunkMode(
     @ProtoNumber(1)
-    val patches: List<SophonPatchFile> = emptyList(),
+    val file: String = "",
 
-    // 需要删除的文件
     @ProtoNumber(2)
-    val deleteTags: List<SophonPatchDeleteTag> = emptyList(),
+    val chunks: List<SophonChunk> = emptyList(),
 
-    // 压缩模式
     @ProtoNumber(3)
-    val compressMode: Int = 0
+    val isFolder: Boolean = false,
+
+    @ProtoNumber(4)
+    val size: Long = 0,
+
+    @ProtoNumber(5)
+    val md5: String = ""
 )
 
 // Chunk 模式游戏文件块
@@ -55,24 +58,39 @@ data class SophonChunk(
     val compressedMd5: String = ""
 )
 
-// Chunk 模式游戏文件
+// Patch 更新模式游戏文件清单
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonChunkFile(
+data class SophonManifestPatchMode(
+    // 新版本所有文件
+    @ProtoNumber(1)
+    val patches: List<SophonFilePatchMode> = emptyList(),
+
+    // 需要删除的文件
+    @ProtoNumber(2)
+    val deleteTags: List<SophonPatchDeleteTag> = emptyList(),
+
+    // 压缩模式
+    @ProtoNumber(3)
+    val compressMode: Int = 0
+)
+
+// Patch 更新模式，新版本游戏文件
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class SophonFilePatchMode(
     @ProtoNumber(1)
     val file: String = "",
 
     @ProtoNumber(2)
-    val chunks: List<SophonChunk> = emptyList(),
-
-    @ProtoNumber(3)
-    val isFolder: Boolean = false,
-
-    @ProtoNumber(4)
     val size: Long = 0,
 
-    @ProtoNumber(5)
-    val md5: String = ""
+    @ProtoNumber(3)
+    val md5: String = "",
+
+    // 不同版本的补丁文件，如果为空则表示不需要更新
+    @ProtoNumber(4)
+    val patches: List<SophonPatchInfo> = emptyList()
 )
 
 // Patch 更新模式，游戏文件补丁
@@ -123,24 +141,6 @@ data class SophonPatchInfo(
 
     @ProtoNumber(2)
     val patch: SophonPatch? = null
-)
-
-// Patch 更新模式，新版本游戏文件
-@OptIn(ExperimentalSerializationApi::class)
-@Serializable
-data class SophonPatchFile(
-    @ProtoNumber(1)
-    val file: String = "",
-
-    @ProtoNumber(2)
-    val size: Long = 0,
-
-    @ProtoNumber(3)
-    val md5: String = "",
-
-    // 不同版本的补丁文件，如果为空则表示不需要更新
-    @ProtoNumber(4)
-    val patches: List<SophonPatchInfo> = emptyList()
 )
 
 // Patch 更新模式，需要删除文件
