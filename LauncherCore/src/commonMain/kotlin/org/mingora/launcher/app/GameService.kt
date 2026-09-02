@@ -4,8 +4,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.createDirectories
 import io.github.vinceglb.filekit.exists
-import io.github.vinceglb.filekit.path
-import io.github.vinceglb.filekit.resolve
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mingora.launcher.core.GameId
@@ -45,13 +43,7 @@ object GameService : KoinComponent {
             GameInstallType.PreDownload -> generateBrandNewInstallTask(gameId, installPath, audioLanguage)
         }
         gameInstallService.insertTask(task)
-        val succeeded = gameInstallService.startDownloadTask(gameId)
-        if (succeeded) {
-            LauncherPreference.setValue(
-                stringPreferencesKey("game_exec_${gameId.id}"),
-                installPath.resolve(task.gameConfig.exeFileName).path,
-            )
-        }
+        gameInstallService.startDownloadTask(gameId)
     }
 
     @Throws(Exception::class)

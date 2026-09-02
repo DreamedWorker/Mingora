@@ -1,24 +1,18 @@
 package org.mingora.launcher.gameinstall
 
-import io.github.vinceglb.filekit.createDirectories
-import io.github.vinceglb.filekit.exists
-import io.github.vinceglb.filekit.parent
-import io.github.vinceglb.filekit.readString
-import io.github.vinceglb.filekit.resolve
-import io.github.vinceglb.filekit.sink
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.currentCoroutineContext
+import androidx.datastore.preferences.core.stringPreferencesKey
+import io.github.vinceglb.filekit.*
+import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.io.buffered
-import org.mingora.launcher.core.GameId
 import org.mingora.launcher.app.GameInstallStatus
+import org.mingora.launcher.core.GameId
 import org.mingora.launcher.core.GameId.Companion.isBilibiliServer
+import org.mingora.launcher.core.preference.LauncherPreference
+import org.mingora.launcher.core.util.DeviceUtil
 import org.mingora.launcher.gameinstall.task.GameBrandNewInstallTask
 import org.mingora.launcher.gameinstall.task.GameInstallTask
 import kotlin.coroutines.cancellation.CancellationException
@@ -32,6 +26,10 @@ internal class GameInstallService(
     private val pendingControls = mutableMapOf<GameId, TaskControl>()
     private val taskStates = mutableMapOf<GameId, String>()
     private val taskProgress = mutableMapOf<GameId, Pair<Long, Long>>()
+    private val taskScope = CoroutineScope(Dispatchers.Default)
+    // 一个文件对应多个 HTTP chunk。限制并发请求数，避免一次安装创建数百个
+    // NSURLSession task，导致 CDN/系统连接池大量超时。
+    private val downloadLimiter = Semaphore(DeviceUtil.getCpuCoreCount())
 
     private enum class TaskControl {
         Pause,
@@ -52,18 +50,28 @@ internal class GameInstallService(
         }
     }
 
-    suspend fun startDownloadTask(gameId: GameId): Boolean {
-        val job = currentCoroutineContext()[Job]
-            ?: throw IllegalStateException("Game installation must run in a coroutine")
+    /**
+     * 将安装任务提交到服务自己的生命周期中。
+     *
+     * 不能依赖调用方的 CoroutineContext：Swift 调用 suspend API 时，Kotlin/Native
+     * 的 continuation 不一定携带 Job。任务本身必须由 service scope 持有，否则会在
+     * Swift -> Kotlin interop 场景下抛出 “Game installation must run in a coroutine”。
+     */
+    suspend fun startDownloadTask(gameId: GameId) {
         val task = taskLock.withLock {
             val task = currentTask[gameId]
                 ?: throw IllegalArgumentException("The task of this game does not exists")
             check(activeJobs[gameId] == null) { "The task of this game is already running" }
-            activeJobs[gameId] = job
-            pendingControls.remove(gameId)
             task
         }
+        val job = taskScope.launch(start = CoroutineStart.LAZY) {
+            runDownloadTask(gameId, task)
+        }
+        taskLock.withLock { activeJobs[gameId] = job }
+        job.start()
+    }
 
+    private suspend fun runDownloadTask(gameId: GameId, task: GameInstallTask) {
         try {
             task.installPath.createDirectories()
             GameAudioLanguage.setAudioLanguage(task)
@@ -79,7 +87,10 @@ internal class GameInstallService(
                 taskProgress[gameId] = taskProgress(task)
                 currentTask.remove(gameId)
             }
-            return true
+            LauncherPreference.setValue(
+                stringPreferencesKey("game_exec_${gameId.id}"),
+                task.installPath.resolve(task.gameConfig.exeFileName).path,
+            )
         } catch (error: CancellationException) {
             val control = taskLock.withLock { pendingControls[gameId] }
             if (control == null) {
@@ -96,7 +107,6 @@ internal class GameInstallService(
                     currentTask.remove(gameId)
                 }
             }
-            return false
         } catch (error: Throwable) {
             error.printStackTrace()
             task.onError()
@@ -105,10 +115,9 @@ internal class GameInstallService(
                 taskProgress[gameId] = taskProgress(task)
                 currentTask.remove(gameId)
             }
-            return false
         } finally {
             taskLock.withLock {
-                if (activeJobs[gameId] === job) {
+                if (activeJobs[gameId] === currentCoroutineContext()[Job]) {
                     activeJobs.remove(gameId)
                     pendingControls.remove(gameId)
                 }
@@ -181,8 +190,10 @@ internal class GameInstallService(
         coroutineScope {
             files.map { file ->
                 launch(Dispatchers.Default) {
-                    helper.downloadChunksToFile(task, file)
-                    file.isFinished = true
+                    downloadLimiter.withPermit {
+                        helper.downloadChunksToFile(task, file)
+                        file.isFinished = true
+                    }
                 }
             }.joinAll()
         }

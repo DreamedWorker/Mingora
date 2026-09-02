@@ -17,4 +17,16 @@ internal expect class ZstdStreamDecompressor() {
         offset: Int = 0,
         length: Int = input.size - offset,
     ): DecompressResult
+
+
+    /**
+     * 流式解压输入，并将输出按小块交给 [sink]，避免为了返回完整结果而分配一个
+     * 与解压后数据等大的 ByteArray。
+     */
+    fun decompressChunked(
+        input: ByteArray,
+        offset: Int = 0,
+        length: Int = input.size - offset,
+        sink: (ByteArray) -> Unit,
+    ): DecompressResult
 }
