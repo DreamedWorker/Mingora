@@ -9,6 +9,8 @@ import org.koin.dsl.module
 import org.mingora.launcher.core.util.FileDownloader
 import org.mingora.launcher.core.util.httpClient
 import org.mingora.launcher.core.zstd.ZstdStreamDecompressor
+import org.mingora.launcher.gameinstall.GameInstallHelper
+import org.mingora.launcher.gameinstall.GameInstallService
 import org.mingora.launcher.hyp.HYPClient
 import org.mingora.launcher.wine.WineInfEditor
 import org.mingora.launcher.wine.WineInstaller
@@ -20,7 +22,7 @@ internal val commonModule = module {
     single { createDataStore() }
     single { ProtoBuf {  } }
     single { ZstdStreamDecompressor() }
-    single { FileDownloader(get()) }
+    single { FileDownloader(get(), get()) }
 }
 
 internal val applicationModule = module {
@@ -29,8 +31,13 @@ internal val applicationModule = module {
     single { HYPClient(get()) }
 }
 
+internal val gameInstallerModule = module {
+    single { GameInstallHelper(get(), get()) }
+    single { GameInstallService(get()) }
+}
+
 internal fun startKoinApp() {
     startKoin {
-        modules(commonModule, applicationModule)
+        modules(commonModule, applicationModule, gameInstallerModule)
     }
 }

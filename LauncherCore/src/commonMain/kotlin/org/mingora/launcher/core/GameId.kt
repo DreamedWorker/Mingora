@@ -1,5 +1,7 @@
 package org.mingora.launcher.core
 
+import org.mingora.launcher.hyp.models.common.SimpleGameEntry
+
 enum class GameId(val id: String, val biz: String, val launcher: HYPLauncherId) {
     BH3_CN("osvnlOc0S8", "bh3_cn", HYPLauncherId.CHINA_OFFICIAL),
     BH3_GLOBAL("5TIVvvcwtM", "bh3_global", HYPLauncherId.GLOBAL_OFFICIAL),
@@ -18,6 +20,8 @@ enum class GameId(val id: String, val biz: String, val launcher: HYPLauncherId) 
             HK4E_BILIBILI, HKRPG_BILIBILI, NAP_BILIBILI -> true
             else -> false
         }
+
+        fun GameId.toGameEntry(): SimpleGameEntry = SimpleGameEntry(this.id, this.biz)
 
         fun getGameIdsByLauncher(launcher: HYPLauncherId): List<GameId> {
             return when (launcher) {

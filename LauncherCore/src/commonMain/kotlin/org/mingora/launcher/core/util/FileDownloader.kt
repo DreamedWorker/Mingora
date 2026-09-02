@@ -18,6 +18,7 @@ import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.buffered
 import org.mingora.launcher.core.exception.DownloadException
+import org.mingora.launcher.core.zstd.ZstdStreamDecompressor
 
 /**
  * 下载文件，并按字节回报下载进度。
@@ -25,8 +26,9 @@ import org.mingora.launcher.core.exception.DownloadException
  * 响应将首先被写入到临时文件中，并仅在下载完成后才进行原子移动到 `目标文件`。
  * 确保没有中间态被保留。
  */
-class FileDownloader(
+internal class FileDownloader(
     private val httpClient: HttpClient,
+    private val zstdDecompression: ZstdStreamDecompressor
 ) {
     /**
      * 将 [url] 下载到 [destination].
@@ -104,13 +106,26 @@ class FileDownloader(
     /**
      * 直接将目标下载到字节数组中，不写入文件系统
      * */
-    suspend fun downloadDirectly(url: String): Result<ByteArray> {
+    suspend fun downloadDirectly(
+        url: String,
+        needDecompression: Boolean = false,
+    ): Result<ByteArray> {
         return try {
             val response = httpClient.get(url)
             if (response.status.value !in 200..299) {
                 return Result.failure(IllegalStateException("HTTP ${response.status.value} while downloading $url"))
             }
-            Result.success(response.body<ByteArray>())
+            val originalBytes = response.body<ByteArray>()
+            if (needDecompression) {
+                val decompressResult = zstdDecompression.decompress(originalBytes)
+                if (decompressResult.frameComplete) {
+                    Result.success(decompressResult.output)
+                } else {
+                    Result.failure(Exception("Failed to decompress $url"))
+                }
+            } else {
+                Result.success(originalBytes)
+            }
         } catch (error: Throwable) {
             Result.failure(error)
         }
