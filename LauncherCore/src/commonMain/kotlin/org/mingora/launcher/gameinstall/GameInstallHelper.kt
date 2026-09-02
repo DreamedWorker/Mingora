@@ -4,10 +4,13 @@ import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.DelicateCryptographyApi
 import dev.whyoleg.cryptography.algorithms.MD5
 import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.createDirectories
 import io.github.vinceglb.filekit.delete
 import io.github.vinceglb.filekit.exists
 import io.github.vinceglb.filekit.isRegularFile
 import io.github.vinceglb.filekit.path
+import io.github.vinceglb.filekit.parent
+import io.github.vinceglb.filekit.sink
 import io.github.vinceglb.filekit.readBytes
 import io.github.vinceglb.filekit.resolve
 import io.github.vinceglb.filekit.size
@@ -49,6 +52,14 @@ internal class GameInstallHelper(
             val offset = offset1.coerceAtMost(output.size.toLong()).toInt()
             check(offset + uncompressed.size <= output.size) { "Chunk exceeds target file: ${file.nameWithRelativePath}" }
             uncompressed.copyInto(output, destinationOffset = offset)
+        }
+
+        file.fullPath.parent()?.let { parent ->
+            if (!parent.exists()) parent.createDirectories()
+        }
+        file.fullPath.sink().buffered().use { sink ->
+            sink.write(output, endIndex = output.size)
+            sink.flush()
         }
     }
 

@@ -42,6 +42,7 @@ struct HomeView: View {
                             HStack(alignment: .bottom) {
                                 GameNotice(currentGame: appState.lastOpenedGame!)
                                 Spacer()
+                                StartGame(selectedGame: appState.lastOpenedGame!)
                             }
                         }
                         .padding(.bottom, 20)

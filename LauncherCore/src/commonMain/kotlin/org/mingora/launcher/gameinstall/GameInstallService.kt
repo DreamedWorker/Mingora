@@ -17,6 +17,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.io.buffered
 import org.mingora.launcher.core.GameId
+import org.mingora.launcher.app.GameInstallStatus
 import org.mingora.launcher.core.GameId.Companion.isBilibiliServer
 import org.mingora.launcher.gameinstall.task.GameBrandNewInstallTask
 import org.mingora.launcher.gameinstall.task.GameInstallTask
@@ -29,6 +30,8 @@ internal class GameInstallService(
     private val currentTask = mutableMapOf<GameId, GameInstallTask>()
     private val activeJobs = mutableMapOf<GameId, Job>()
     private val pendingControls = mutableMapOf<GameId, TaskControl>()
+    private val taskStates = mutableMapOf<GameId, String>()
+    private val taskProgress = mutableMapOf<GameId, Pair<Long, Long>>()
 
     private enum class TaskControl {
         Pause,
@@ -44,10 +47,12 @@ internal class GameInstallService(
                 throw IllegalArgumentException("The task of this game already exists")
             }
             currentTask[task.gameId] = task
+            taskStates[task.gameId] = "preparing"
+            taskProgress[task.gameId] = 0L to 0L
         }
     }
 
-    suspend fun startDownloadTask(gameId: GameId) {
+    suspend fun startDownloadTask(gameId: GameId): Boolean {
         val job = currentCoroutineContext()[Job]
             ?: throw IllegalStateException("Game installation must run in a coroutine")
         val task = taskLock.withLock {
@@ -63,23 +68,44 @@ internal class GameInstallService(
             task.installPath.createDirectories()
             GameAudioLanguage.setAudioLanguage(task)
             task.prepareFiles()
+            taskLock.withLock { taskStates[gameId] = "downloading" }
 
             when(task) {
                 is GameBrandNewInstallTask -> executeInstallTaskAsync(task)
             }
             task.onSuccess()
+            taskLock.withLock {
+                taskStates[gameId] = "completed"
+                taskProgress[gameId] = taskProgress(task)
+                currentTask.remove(gameId)
+            }
+            return true
         } catch (error: CancellationException) {
             val control = taskLock.withLock { pendingControls[gameId] }
             if (control == null) {
                 println(error)
                 task.onError()
             }
-            if (control == TaskControl.Terminate) {
-                taskLock.withLock { currentTask.remove(gameId) }
+            taskLock.withLock {
+                if (control == TaskControl.Pause) {
+                    taskStates[gameId] = "paused"
+                    taskProgress[gameId] = taskProgress(task)
+                } else if (control == TaskControl.Terminate) {
+                    taskStates[gameId] = "terminated"
+                    taskProgress[gameId] = taskProgress(task)
+                    currentTask.remove(gameId)
+                }
             }
+            return false
         } catch (error: Throwable) {
             error.printStackTrace()
             task.onError()
+            taskLock.withLock {
+                taskStates[gameId] = "failed"
+                taskProgress[gameId] = taskProgress(task)
+                currentTask.remove(gameId)
+            }
+            return false
         } finally {
             taskLock.withLock {
                 if (activeJobs[gameId] === job) {
@@ -118,8 +144,28 @@ internal class GameInstallService(
         if (job != null) {
             job.cancelAndJoin()
         } else {
-            taskLock.withLock { currentTask.remove(gameId) }
+            taskLock.withLock {
+                currentTask.remove(gameId)
+                taskStates[gameId] = "terminated"
+            }
         }
+    }
+
+    suspend fun getStatus(gameId: GameId, isInstalled: Boolean): GameInstallStatus = taskLock.withLock {
+        val task = currentTask[gameId]
+        val state = taskStates[gameId] ?: if (isInstalled) "completed" else "notInstalled"
+        val (downloaded, total) = if (task != null) {
+            taskProgress(task)
+        } else {
+            taskProgress[gameId] ?: (0L to 0L)
+        }
+        GameInstallStatus(state, downloaded, total)
+    }
+
+    private fun taskProgress(task: GameInstallTask): Pair<Long, Long> {
+        val installTask = task as? GameBrandNewInstallTask
+            ?: return 0L to 0L
+        return installTask.currentDownloadedBytes to installTask.totalDownloadedBytes
     }
 
     private suspend fun executeInstallTaskAsync(task: GameBrandNewInstallTask) {
