@@ -46,7 +46,13 @@ internal data class GameBrandNewInstallTask(
         get() = currentDownloadedBytesAtomic.load()
     var totalDownloadedBytes: Long = 0
 
+    fun resetProgress() {
+        currentDownloadedBytesAtomic.store(0L)
+    }
+
     override suspend fun prepareFiles() {
+        taskFiles.clear()
+        totalDownloadedBytes = 0L
         // 准备要下载的文件
         val gameChunkBuildInfo = hypClient.getGameChunkBuild(
             gameInfo = gameId.toGameEntry(),

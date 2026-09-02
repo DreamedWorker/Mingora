@@ -7,6 +7,11 @@ import io.github.vinceglb.filekit.readString
 import io.github.vinceglb.filekit.resolve
 import io.github.vinceglb.filekit.sink
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -20,30 +25,41 @@ import kotlin.coroutines.cancellation.CancellationException
 internal class GameInstallService(
     private val helper: GameInstallHelper,
 ) {
+    private val taskLock = Mutex()
     private val currentTask = mutableMapOf<GameId, GameInstallTask>()
+    private val activeJobs = mutableMapOf<GameId, Job>()
+    private val pendingControls = mutableMapOf<GameId, TaskControl>()
 
-    fun insertTask(task: GameInstallTask) {
-        if (currentTask.isNotEmpty()) {
-            throw IllegalStateException("Already inserting task")
+    private enum class TaskControl {
+        Pause,
+        Terminate,
+    }
+
+    suspend fun insertTask(task: GameInstallTask) {
+        taskLock.withLock {
+            if (currentTask.isNotEmpty()) {
+                throw IllegalStateException("Already inserting task")
+            }
+            if (currentTask.contains(task.gameId)) {
+                throw IllegalArgumentException("The task of this game already exists")
+            }
+            currentTask[task.gameId] = task
         }
-        if (currentTask.contains(task.gameId)) {
-            throw IllegalArgumentException("The task of this game already exists")
-        }
-        currentTask[task.gameId] = task
     }
 
     suspend fun startDownloadTask(gameId: GameId) {
-        val task = if (currentTask.containsKey(gameId)) {
-            currentTask[gameId]!!
-        } else {
-            null
+        val job = currentCoroutineContext()[Job]
+            ?: throw IllegalStateException("Game installation must run in a coroutine")
+        val task = taskLock.withLock {
+            val task = currentTask[gameId]
+                ?: throw IllegalArgumentException("The task of this game does not exists")
+            check(activeJobs[gameId] == null) { "The task of this game is already running" }
+            activeJobs[gameId] = job
+            pendingControls.remove(gameId)
+            task
         }
 
         try {
-            if (task == null) {
-                throw IllegalArgumentException("The task of this game does not exists")
-            }
-
             task.installPath.createDirectories()
             GameAudioLanguage.setAudioLanguage(task)
             task.prepareFiles()
@@ -53,11 +69,56 @@ internal class GameInstallService(
             }
             task.onSuccess()
         } catch (error: CancellationException) {
-            println(error)
-            task?.onError()
+            val control = taskLock.withLock { pendingControls[gameId] }
+            if (control == null) {
+                println(error)
+                task.onError()
+            }
+            if (control == TaskControl.Terminate) {
+                taskLock.withLock { currentTask.remove(gameId) }
+            }
         } catch (error: Throwable) {
             error.printStackTrace()
-            task?.onError()
+            task.onError()
+        } finally {
+            taskLock.withLock {
+                if (activeJobs[gameId] === job) {
+                    activeJobs.remove(gameId)
+                    pendingControls.remove(gameId)
+                }
+            }
+        }
+    }
+
+    suspend fun pauseDownloadTask(gameId: GameId) {
+        val job = taskLock.withLock {
+            check(currentTask.containsKey(gameId)) { "The task of this game does not exists" }
+            activeJobs[gameId]?.also { pendingControls[gameId] = TaskControl.Pause }
+        }
+        job?.cancelAndJoin()
+    }
+
+    suspend fun resumeDownloadTask(gameId: GameId) {
+        val task = taskLock.withLock {
+            currentTask[gameId]
+                ?: throw IllegalArgumentException("The task of this game does not exists")
+        }
+        taskLock.withLock {
+            check(activeJobs[gameId] == null) { "The task of this game is already running" }
+        }
+        (task as? GameBrandNewInstallTask)?.resetProgress()
+        startDownloadTask(gameId)
+    }
+
+    suspend fun terminateDownloadTask(gameId: GameId) {
+        val job = taskLock.withLock {
+            check(currentTask.containsKey(gameId)) { "The task of this game does not exists" }
+            activeJobs[gameId]?.also { pendingControls[gameId] = TaskControl.Terminate }
+        }
+        if (job != null) {
+            job.cancelAndJoin()
+        } else {
+            taskLock.withLock { currentTask.remove(gameId) }
         }
     }
 

@@ -34,6 +34,21 @@ object GameService : KoinComponent {
         gameInstallService.startDownloadTask(gameId)
     }
 
+    @Throws(Exception::class)
+    suspend fun pauseGameInstall(gameId: GameId) {
+        gameInstallService.pauseDownloadTask(gameId)
+    }
+
+    @Throws(Exception::class)
+    suspend fun resumeGameInstall(gameId: GameId) {
+        gameInstallService.resumeDownloadTask(gameId)
+    }
+
+    @Throws(Exception::class)
+    suspend fun terminateGameInstall(gameId: GameId) {
+        gameInstallService.terminateDownloadTask(gameId)
+    }
+
     private suspend fun generateBrandNewInstallTask(
         gameId: GameId,
         installPath: PlatformFile,
