@@ -7,7 +7,7 @@ import kotlinx.serialization.protobuf.ProtoNumber
 // Chunk 模式游戏文件清单
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonManifestChunkMode(
+internal data class SophonManifestChunkMode(
     @ProtoNumber(1)
     val chunks: List<SophonFileChunkMode> = emptyList(),
 )
@@ -15,7 +15,7 @@ data class SophonManifestChunkMode(
 // Chunk 模式游戏文件
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonFileChunkMode(
+internal data class SophonFileChunkMode(
     @ProtoNumber(1)
     val file: String = "",
 
@@ -35,7 +35,7 @@ data class SophonFileChunkMode(
 // Chunk 模式游戏文件块
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonChunk(
+internal data class SophonChunk(
     @ProtoNumber(1)
     val id: String = "",
 
@@ -61,7 +61,7 @@ data class SophonChunk(
 // Patch 更新模式游戏文件清单
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonManifestPatchMode(
+internal data class SophonManifestPatchMode(
     // 新版本所有文件
     @ProtoNumber(1)
     val patches: List<SophonFilePatchMode> = emptyList(),
@@ -78,7 +78,7 @@ data class SophonManifestPatchMode(
 // Patch 更新模式，新版本游戏文件
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonFilePatchMode(
+internal data class SophonFilePatchMode(
     @ProtoNumber(1)
     val file: String = "",
 
@@ -96,7 +96,7 @@ data class SophonFilePatchMode(
 // Patch 更新模式，游戏文件补丁
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonPatch(
+internal data class SophonPatch(
     @ProtoNumber(1)
     val id: String = "",
 
@@ -134,7 +134,7 @@ data class SophonPatch(
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonPatchInfo(
+internal data class SophonPatchInfo(
     // 更新前游戏版本
     @ProtoNumber(1)
     val tag: String = "",
@@ -146,7 +146,7 @@ data class SophonPatchInfo(
 // Patch 更新模式，需要删除文件
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonPatchDeleteFile(
+internal data class SophonPatchDeleteFile(
     @ProtoNumber(1)
     val file: String = "",
 
@@ -159,14 +159,14 @@ data class SophonPatchDeleteFile(
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonPatchDeleteFileCollection(
+internal data class SophonPatchDeleteFileCollection(
     @ProtoNumber(1)
     val deleteFiles: List<SophonPatchDeleteFile> = emptyList()
 )
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class SophonPatchDeleteTag(
+internal data class SophonPatchDeleteTag(
     // 更新前游戏版本
     @ProtoNumber(1)
     val tag: String = "",
