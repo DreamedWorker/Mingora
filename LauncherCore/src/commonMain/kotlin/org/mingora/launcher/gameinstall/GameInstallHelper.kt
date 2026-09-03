@@ -20,6 +20,7 @@ import kotlinx.io.buffered
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.delay
+import org.mingora.launcher.core.util.CommandExecutor
 import kotlin.coroutines.cancellation.CancellationException
 import org.mingora.launcher.core.util.FileDownloader
 import org.mingora.launcher.core.zstd.ZstdStreamDecompressor
@@ -106,9 +107,7 @@ internal class GameInstallHelper(
     suspend fun downloadGameChannelSDK(task: GameInstallTask) {
         if (task.channelSDK == null) return
         val sdk = task.channelSDK!!
-        val config = task.gameConfig
         val destination = task.installPath
-            .resolve(config.wpfExeDir)
             .resolve(sdk.pkgVersionFileName.ifBlank { "channel_sdk_${sdk.version}.zip" })
         downloadToFile(
             task,
@@ -116,6 +115,11 @@ internal class GameInstallHelper(
             sdk.channelSDKPkg.url,
             sdk.channelSDKPkg.size.toLong(),
             sdk.channelSDKPkg.md5
+        )
+        CommandExecutor.exec(
+            "/usr/bin/ditto",
+            false,
+            listOf("-x", "-k", destination.path, task.installPath.path)
         )
     }
 
