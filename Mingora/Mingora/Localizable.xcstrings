@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
+    "%lld%%" : {
+
+    },
     "FFmpeg" : {
       "shouldTranslate" : false
     },
@@ -69,6 +72,9 @@
     "好" : {
 
     },
+    "安装后将使用所选语音语言。" : {
+
+    },
     "安装命令：brew install ffmpeg" : {
       "localizations" : {
         "en" : {
@@ -124,9 +130,6 @@
           }
         }
       }
-    },
-    "暂停" : {
-
     },
     "未检测到 FFmpeg，视频背景功能可能无法使用。" : {
       "localizations" : {
@@ -198,6 +201,9 @@
         }
       }
     },
+    "游戏状态" : {
+
+    },
     "点击切换" : {
       "localizations" : {
         "en" : {
@@ -244,9 +250,6 @@
     "终止安装？" : {
 
     },
-    "继续" : {
-
-    },
     "软件设置" : {
       "localizations" : {
         "en" : {
@@ -257,6 +260,9 @@
         }
       }
     },
+    "选择安装目录" : {
+
+    },
     "选择游戏" : {
       "localizations" : {
         "en" : {
@@ -266,6 +272,9 @@
           }
         }
       }
+    },
+    "选择游戏语音" : {
+
     },
     "配置运行环境" : {
       "localizations" : {

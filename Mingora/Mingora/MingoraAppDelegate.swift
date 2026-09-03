@@ -11,6 +11,7 @@ import LauncherCore
 class MingoraAppDelegate: NSObject, NSApplicationDelegate {
     static let windowSize = NSSize(width: 1200, height: 676)
     let appState = AppState()
+    private weak var mainWindow: NSWindow?
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
@@ -23,7 +24,11 @@ class MingoraAppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.windows.forEach(configure(_:))
+        if let window = NSApp.windows.first(where: { $0.sheetParent == nil && $0.parent == nil }) {
+            mainWindow = window
+            configureMainWindow(window)
+        }
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(windowDidBecomeAvailable(_:)),
@@ -37,10 +42,19 @@ class MingoraAppDelegate: NSObject, NSApplicationDelegate {
         guard let window = notification.object as? NSWindow else {
             return
         }
-        configure(window)
+
+        // 主窗口可能在 delegate 回调之后才创建；只接管没有 parent/sheetParent 的根窗口。
+        if mainWindow == nil, window.sheetParent == nil, window.parent == nil {
+            mainWindow = window
+        }
+
+        guard window === mainWindow else {
+            return
+        }
+        configureMainWindow(window)
     }
     
-    private func configure(_ window: NSWindow) {
+    private func configureMainWindow(_ window: NSWindow) {
         window.setContentSize(Self.windowSize)
         window.contentMinSize = Self.windowSize
         window.contentMaxSize = Self.windowSize
