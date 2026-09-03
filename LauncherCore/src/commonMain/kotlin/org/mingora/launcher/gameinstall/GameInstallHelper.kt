@@ -4,11 +4,9 @@ import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.DelicateCryptographyApi
 import dev.whyoleg.cryptography.algorithms.MD5
 import io.github.vinceglb.filekit.PlatformFile
-import io.github.vinceglb.filekit.createDirectories
 import io.github.vinceglb.filekit.delete
 import io.github.vinceglb.filekit.exists
 import io.github.vinceglb.filekit.isRegularFile
-import io.github.vinceglb.filekit.isDirectory
 import io.github.vinceglb.filekit.parent
 import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.sink
@@ -196,7 +194,6 @@ internal class GameInstallHelper(
      * 创建文件的临时文件，将下载的子 chunks 写入。
      * */
     private fun PlatformFile.sibling(name: String): PlatformFile {
-        println(this)
         val parentPath = this.parent()?.path
             ?: error("Cannot create a sibling file for a path without a parent: $path")
         val siblingPath = if (parentPath == "/") "/$name" else "$parentPath/$name"
