@@ -47,7 +47,6 @@ internal class FileDownloader(
         onProgress: (downloadedBytes: Long, totalBytes: Long?) -> Unit = { _, _ -> },
     ): Result<Unit> {
         return try {
-            //ensureParentDirectories(destination)
             FileHelper.ensureParentDirectories(destination.path)
 
             val temporaryFile = destination.sibling("${destination.path.substringAfterLast('/')}.part")
@@ -167,42 +166,6 @@ internal class FileDownloader(
         val siblingPath = if (parentPath == "/") "/$name" else "$parentPath/$name"
         return PlatformFile(siblingPath)
     }
-
-//    private fun ensureParentDirectories(file: PlatformFile) {
-//        parentPathOrNull(file.path)?.let { parentPath ->
-//            ensureDirectories(PlatformFile(parentPath))
-//        }
-//    }
-//
-//    private fun parentPathOrNull(path: String): String? {
-//        if (path.isBlank() || path == "/") return null
-//        val separator = path.lastIndexOf('/')
-//        if (separator < 0) return null
-//        return if (separator == 0) "/" else path.substring(0, separator)
-//    }
-//
-//    private fun ensureDirectories(directory: PlatformFile) {
-//        if (directory.exists()) {
-//            check(directory.isDirectory()) { "Expected directory but found a file: ${directory.path}" }
-//            return
-//        }
-//
-//        // Do not use PlatformFile.parent() here: on FileKit Apple, resolving the
-//        // parent of "/" creates an NSURL with a null path. Work with absolute path
-//        // strings and stop explicitly at the filesystem root instead.
-//        parentPathOrNull(directory.path)?.let { parentPath ->
-//            ensureDirectories(PlatformFile(parentPath))
-//        }
-//        if (directory.exists()) {
-//            check(directory.isDirectory()) { "Expected directory but found a file: ${directory.path}" }
-//            return
-//        }
-//        runCatching { directory.createDirectories() }
-//            .onFailure { error ->
-//                // A parallel download may have created the same directory first.
-//                if (!directory.exists()) throw error
-//            }
-//    }
 
     private companion object {
         const val BUFFER_SIZE_BYTES = 8192

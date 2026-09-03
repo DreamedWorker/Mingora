@@ -55,7 +55,6 @@ internal class GameInstallHelper(
 
         // 不再按完整文件大小分配 ByteArray。
         // Sophon chunk 按 offset 排序后通常是连续的，因此直接顺序写入目标文件即可。
-        //ensureParentDirectories(file.fullPath)
         file.fullPath.sink().buffered().use { sink ->
             var writtenOffset = 0L
             for ((id, offset, compressedSize, uncompressedSize, compressedMd5, uncompressedMd5, url) in
@@ -210,42 +209,6 @@ internal class GameInstallHelper(
         val siblingPath = if (parentPath == "/") "/$name" else "$parentPath/$name"
         return PlatformFile(siblingPath)
     }
-
-//    private fun ensureParentDirectories(file: PlatformFile) {
-//        parentPathOrNull(file.path)?.let { parentPath ->
-//            ensureDirectories(PlatformFile(parentPath))
-//        }
-//    }
-
-//    private fun parentPathOrNull(path: String): String? {
-//        if (path.isBlank() || path == "/") return null
-//        val separator = path.lastIndexOf('/')
-//        if (separator < 0) return null
-//        return if (separator == 0) "/" else path.substring(0, separator)
-//    }
-//
-//    private fun ensureDirectories(directory: PlatformFile) {
-//        if (directory.exists()) {
-//            check(directory.isDirectory()) { "Expected directory but found a file: ${directory.path}" }
-//            return
-//        }
-//
-//        // Do not use PlatformFile.parent() here: on FileKit Apple, resolving the
-//        // parent of "/" creates an NSURL with a null path. Work with absolute path
-//        // strings and stop explicitly at the filesystem root instead.
-//        parentPathOrNull(directory.path)?.let { parentPath ->
-//            ensureDirectories(PlatformFile(parentPath))
-//        }
-//        if (directory.exists()) {
-//            check(directory.isDirectory()) { "Expected directory but found a file: ${directory.path}" }
-//            return
-//        }
-//        runCatching { directory.createDirectories() }
-//            .onFailure { error ->
-//                // A parallel download may have created the same directory first.
-//                if (!directory.exists()) throw error
-//            }
-//    }
 
     private suspend fun fileMd5(destination: PlatformFile): String {
         val hashFunction = md5Hasher.createHashFunction()
