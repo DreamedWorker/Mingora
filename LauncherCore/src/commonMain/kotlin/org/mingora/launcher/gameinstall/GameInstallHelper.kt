@@ -4,25 +4,27 @@ import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.DelicateCryptographyApi
 import dev.whyoleg.cryptography.algorithms.MD5
 import io.github.vinceglb.filekit.PlatformFile
-import io.github.vinceglb.filekit.createDirectories
 import io.github.vinceglb.filekit.delete
 import io.github.vinceglb.filekit.exists
 import io.github.vinceglb.filekit.isRegularFile
-import io.github.vinceglb.filekit.isDirectory
+import io.github.vinceglb.filekit.parent
 import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.sink
 import io.github.vinceglb.filekit.readBytes
 import io.github.vinceglb.filekit.resolve
 import io.github.vinceglb.filekit.size
 import io.github.vinceglb.filekit.source
+import kotlinx.coroutines.Dispatchers
 import kotlinx.io.Sink
 import kotlinx.io.buffered
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.mingora.launcher.core.util.CommandExecutor
 import kotlin.coroutines.cancellation.CancellationException
 import org.mingora.launcher.core.util.FileDownloader
+import org.mingora.launcher.core.util.FileHelper
 import org.mingora.launcher.core.zstd.ZstdStreamDecompressor
 import org.mingora.launcher.gameinstall.task.GameInstallTask
 import org.mingora.launcher.gameinstall.task.TaskFile
@@ -48,9 +50,11 @@ internal class GameInstallHelper(
             return
         }
 
+        // 需要先确保文件的目录链完整
+        FileHelper.ensureParentDirectories(task.installPath.path + "/" + file.nameWithRelativePath)
+
         // 不再按完整文件大小分配 ByteArray。
         // Sophon chunk 按 offset 排序后通常是连续的，因此直接顺序写入目标文件即可。
-        ensureParentDirectories(file.fullPath)
         file.fullPath.sink().buffered().use { sink ->
             var writtenOffset = 0L
             for ((id, offset, compressedSize, uncompressedSize, compressedMd5, uncompressedMd5, url) in
@@ -67,7 +71,10 @@ internal class GameInstallHelper(
                 temporary.delete(mustExist = false)
                 val hashFunction = md5Hasher.createHashFunction()
                 var uncompressedSizeWritten = 0L
-                if (compressedSize == uncompressedSize) {
+                // Sophon 的压缩块即使压缩后大小恰好等于原始大小，仍然可能是
+                // 一个合法的 zstd frame。不能仅凭两个 size 相等就把它当作原始数据，
+                // 否则该块会在下面的 uncompressedMd5 校验处失败。
+                if (compressedSize == uncompressedSize && !isZstdFrame(compressed)) {
                     hashFunction.update(compressed, 0, compressed.size)
                     sink.write(compressed, endIndex = compressed.size)
                     uncompressedSizeWritten = compressed.size.toLong()
@@ -84,8 +91,10 @@ internal class GameInstallHelper(
                 check(uncompressedSizeWritten == uncompressedSize) {
                     "Chunk has an unexpected uncompressed size: $id"
                 }
-                check(uncompressedMd5.isBlank() || hashFunction.hashToByteArray().toHexString().lowercase() == uncompressedMd5.lowercase()) {
-                    "Chunk verification failed: $id"
+                val actualUncompressedMd5 = hashFunction.hashToByteArray().toHexString()
+                check(uncompressedMd5.isBlank() || actualUncompressedMd5
+                    .equals(uncompressedMd5, ignoreCase = true)) {
+                    "Chunk verification failed: $id (expected=$uncompressedMd5, actual=$actualUncompressedMd5)"
                 }
                 check(offset + uncompressedSizeWritten <= file.size) {
                     "Chunk exceeds target file: ${file.nameWithRelativePath}"
@@ -175,6 +184,13 @@ internal class GameInstallHelper(
         }
     }
 
+    private fun isZstdFrame(bytes: ByteArray): Boolean =
+        bytes.size >= 4 &&
+            bytes[0] == 0x28.toByte() &&
+            bytes[1] == 0xB5.toByte() &&
+            bytes[2] == 0x2F.toByte() &&
+            bytes[3] == 0xFD.toByte()
+
     private fun writeZeros(sink: Sink, count: Long) {
         var remaining = count
         while (remaining > 0L) {
@@ -184,64 +200,34 @@ internal class GameInstallHelper(
         }
     }
 
+    /**
+     * 创建文件的临时文件，将下载的子 chunks 写入。
+     * */
     private fun PlatformFile.sibling(name: String): PlatformFile {
-        val parentPath = parentPathOrNull(path)
+        val parentPath = this.parent()?.path
             ?: error("Cannot create a sibling file for a path without a parent: $path")
         val siblingPath = if (parentPath == "/") "/$name" else "$parentPath/$name"
         return PlatformFile(siblingPath)
     }
 
-    private fun ensureParentDirectories(file: PlatformFile) {
-        parentPathOrNull(file.path)?.let { parentPath ->
-            ensureDirectories(PlatformFile(parentPath))
-        }
-    }
-
-    private fun parentPathOrNull(path: String): String? {
-        if (path.isBlank() || path == "/") return null
-        val separator = path.lastIndexOf('/')
-        if (separator < 0) return null
-        return if (separator == 0) "/" else path.substring(0, separator)
-    }
-
-    private fun ensureDirectories(directory: PlatformFile) {
-        if (directory.exists()) {
-            check(directory.isDirectory()) { "Expected directory but found a file: ${directory.path}" }
-            return
-        }
-
-        // Do not use PlatformFile.parent() here: on FileKit Apple, resolving the
-        // parent of "/" creates an NSURL with a null path. Work with absolute path
-        // strings and stop explicitly at the filesystem root instead.
-        parentPathOrNull(directory.path)?.let { parentPath ->
-            ensureDirectories(PlatformFile(parentPath))
-        }
-        if (directory.exists()) {
-            check(directory.isDirectory()) { "Expected directory but found a file: ${directory.path}" }
-            return
-        }
-        runCatching { directory.createDirectories() }
-            .onFailure { error ->
-                // A parallel download may have created the same directory first.
-                if (!directory.exists()) throw error
-            }
-    }
-
-    private fun fileMd5(destination: PlatformFile): String {
+    private suspend fun fileMd5(destination: PlatformFile): String {
         val hashFunction = md5Hasher.createHashFunction()
-        destination.source().buffered().use { source ->
-            val buffer = ByteArray(1024 * 1024)
-            while (true) {
-                val read = source.readAtMostTo(buffer)
-                if (read <= 0) break
-                hashFunction.update(buffer, 0, read)
+        // 因为根任务持有的作用域在 IO 线程，因此执行 CPU 密集的计算任务需要调度
+        return withContext(Dispatchers.Default) {
+            destination.source().buffered().use { source ->
+                val buffer = ByteArray(8192)
+                while (true) {
+                    val read = source.readAtMostTo(buffer)
+                    if (read <= 0) break
+                    hashFunction.update(buffer, 0, read)
+                }
             }
+            hashFunction.hashToByteArray().toHexString().lowercase()
         }
-        return hashFunction.hashToByteArray().toHexString().lowercase()
     }
 
     private companion object {
-        val ZERO_BUFFER = ByteArray(1024 * 1024)
+        val ZERO_BUFFER = ByteArray(8192)
         const val MAX_DOWNLOAD_RETRIES = 3
         const val RETRY_DELAY_MILLIS = 1_000L
     }

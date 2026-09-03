@@ -1,6 +1,7 @@
 package org.mingora.launcher.core.util
 
 import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.parent
 import io.github.vinceglb.filekit.path
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -80,6 +81,20 @@ internal actual object FileHelper {
             }
         } finally {
             outputStream.close()
+        }
+    }
+
+    @OptIn(ExperimentalForeignApi::class)
+    actual fun ensureParentDirectories(source: String) {
+        val parent = source.substringBeforeLast('/')
+        val manager = NSFileManager.defaultManager
+        if (!manager.fileExistsAtPath(parent)) {
+            manager.createDirectoryAtPath(
+                parent,
+                true,
+                null,
+                null
+            )
         }
     }
 }

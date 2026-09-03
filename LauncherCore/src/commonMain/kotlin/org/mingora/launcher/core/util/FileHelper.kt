@@ -10,4 +10,6 @@ internal expect object FileHelper {
     fun replaceDirectory(source: PlatformFile, target: PlatformFile)
 
     fun insertContentWithPosition(file: PlatformFile, contents: String)
+
+    fun ensureParentDirectories(source: String)
 }
