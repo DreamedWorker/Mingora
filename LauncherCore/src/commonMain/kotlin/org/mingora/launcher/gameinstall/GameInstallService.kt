@@ -255,7 +255,7 @@ internal class GameInstallService(
                 values[it.groupValues[1].trim()] = it.groupValues[2].trim()
             }
         }
-        context.latestGameVersion.takeIf { context !is GameBrandNewInstallTask }?.let { values["game_version"] = it }
+        context.latestGameVersion.takeIf { it.isNotBlank() }?.let { values["game_version"] = it }
         context.channelSDK?.let { sdk ->
             values["sdk_version"] = sdk.version
             if (context.gameId.isBilibiliServer()) {

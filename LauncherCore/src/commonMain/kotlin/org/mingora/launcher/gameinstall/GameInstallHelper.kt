@@ -72,7 +72,10 @@ internal class GameInstallHelper(
                 temporary.delete(mustExist = false)
                 val hashFunction = md5Hasher.createHashFunction()
                 var uncompressedSizeWritten = 0L
-                if (compressedSize == uncompressedSize) {
+                // Sophon 的压缩块即使压缩后大小恰好等于原始大小，仍然可能是
+                // 一个合法的 zstd frame。不能仅凭两个 size 相等就把它当作原始数据，
+                // 否则该块会在下面的 uncompressedMd5 校验处失败。
+                if (compressedSize == uncompressedSize && !isZstdFrame(compressed)) {
                     hashFunction.update(compressed, 0, compressed.size)
                     sink.write(compressed, endIndex = compressed.size)
                     uncompressedSizeWritten = compressed.size.toLong()
@@ -89,9 +92,10 @@ internal class GameInstallHelper(
                 check(uncompressedSizeWritten == uncompressedSize) {
                     "Chunk has an unexpected uncompressed size: $id"
                 }
-                check(uncompressedMd5.isBlank() || hashFunction.hashToByteArray().toHexString()
+                val actualUncompressedMd5 = hashFunction.hashToByteArray().toHexString()
+                check(uncompressedMd5.isBlank() || actualUncompressedMd5
                     .equals(uncompressedMd5, ignoreCase = true)) {
-                    "Chunk verification failed: $id"
+                    "Chunk verification failed: $id (expected=$uncompressedMd5, actual=$actualUncompressedMd5)"
                 }
                 check(offset + uncompressedSizeWritten <= file.size) {
                     "Chunk exceeds target file: ${file.nameWithRelativePath}"
@@ -180,6 +184,13 @@ internal class GameInstallHelper(
             }
         }
     }
+
+    private fun isZstdFrame(bytes: ByteArray): Boolean =
+        bytes.size >= 4 &&
+            bytes[0] == 0x28.toByte() &&
+            bytes[1] == 0xB5.toByte() &&
+            bytes[2] == 0x2F.toByte() &&
+            bytes[3] == 0xFD.toByte()
 
     private fun writeZeros(sink: Sink, count: Long) {
         var remaining = count
