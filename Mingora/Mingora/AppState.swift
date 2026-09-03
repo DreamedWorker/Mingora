@@ -15,6 +15,8 @@ class AppState: Identifiable {
     var lastOpenedGame: String? = nil
     var mainlyLauncher: HYPLauncherId?
     var gameNews: [GameContent] = []
+    var gameInstallStatuses: [String: InstallStatus] = [:]
+    private var installPollingTask: Task<Void, Never>?
     
     func setupBasicData() {
         Task { @MainActor in
@@ -68,6 +70,39 @@ class AppState: Identifiable {
         }
     }
     
+    func installStatus(for gameId: String) -> InstallStatus {
+        gameInstallStatuses[gameId] ?? .notInstalled
+    }
+
+    func startInstallStatusPolling() {
+        installPollingTask?.cancel()
+        installPollingTask = Task { @MainActor in
+            while !Task.isCancelled {
+                await refreshInstallStatuses()
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+        }
+    }
+
+    func stopInstallStatusPolling() {
+        installPollingTask?.cancel()
+        installPollingTask = nil
+    }
+
+    @MainActor
+    func refreshInstallStatuses() async {
+        for game in gameInfos {
+            do {
+                let status = try await GameService.shared.getGameInstallStatus(
+                    gameId: GameId.Companion.shared.convertId(id: game.id)
+                )
+                gameInstallStatuses[game.id] = InstallStatus(status)
+            } catch {
+                print("读取游戏安装状态失败: \(error)")
+            }
+        }
+    }
+
     func cacheGameNews(_ content: GameContent) {
         if !gameNews.contains(where: { $0.game.id == content.game.id }) {
             gameNews.append(content)
@@ -80,5 +115,50 @@ extension AppState {
         let state = AppState()
         state.isFirstOpen = true
         return state
+    }
+}
+
+
+enum InstallStatus: Equatable {
+    case notInstalled
+    case preparing
+    case downloading(downloadedBytes: Int64, totalBytes: Int64)
+    case paused(downloadedBytes: Int64, totalBytes: Int64)
+    case completed
+    case failed
+    case terminated
+
+    init(_ status: GameInstallStatus) {
+        switch status.state {
+        case "preparing": self = .preparing
+        case "downloading": self = .downloading(downloadedBytes: status.downloadedBytes, totalBytes: status.totalBytes)
+        case "paused": self = .paused(downloadedBytes: status.downloadedBytes, totalBytes: status.totalBytes)
+        case "completed": self = .completed
+        case "failed": self = .failed
+        case "terminated": self = .terminated
+        default: self = .notInstalled
+        }
+    }
+
+    var progress: Double {
+        switch self {
+        case .downloading(let downloaded, let total), .paused(let downloaded, let total):
+            guard total > 0 else { return 0 }
+            return min(max(Double(downloaded) / Double(total), 0), 1)
+        case .completed: return 1
+        default: return 0
+        }
+    }
+
+    var downloadedText: String? {
+        switch self {
+        case .downloading(let downloaded, let total), .paused(let downloaded, let total):
+            return "\(Self.formatBytes(downloaded)) / \(Self.formatBytes(total))"
+        default: return nil
+        }
+    }
+
+    private static func formatBytes(_ value: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: value, countStyle: .file)
     }
 }

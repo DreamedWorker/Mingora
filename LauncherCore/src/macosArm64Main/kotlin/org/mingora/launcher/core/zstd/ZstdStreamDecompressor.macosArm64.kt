@@ -36,6 +36,8 @@ internal actual class ZstdStreamDecompressor {
 
     private var totalOutputBytes: Long = 0L
     private var closed: Boolean = false
+    /** 当前 dstream 是否承接一个尚未完成的 frame。 */
+    private var hasActiveFrame: Boolean = false
 
     init {
         require(outputChunkSize > 0) { "outputChunkSize must granter than 0，actual is $outputChunkSize" }
@@ -48,8 +50,31 @@ internal actual class ZstdStreamDecompressor {
         length: Int
     ): DecompressResult {
         val accumulator = ByteArrayAccumulator()
-        val result = decompressTo(input, offset, length) { accumulator.append(it) }
+        val result = decompressChunked(input, offset, length) { accumulator.append(it) }
         return DecompressResult(accumulator.toByteArray(), result.frameComplete, result.totalOutputBytes)
+    }
+
+    actual fun decompressChunked(
+        input: ByteArray,
+        offset: Int,
+        length: Int,
+        sink: (ByteArray) -> Unit,
+    ): DecompressResult {
+        // 一个 decompressor 实例会被 DI 作为单例复用。不同 manifest/chunk 通常是彼此
+        // 独立的 zstd frame；只有上一次输入没有结束 frame 时，才继续使用旧 dstream。
+        if (!hasActiveFrame) {
+            initDStream()
+        }
+
+        return try {
+            val result = decompressTo(input, offset, length, sink)
+            hasActiveFrame = !result.frameComplete
+            result
+        } catch (error: Throwable) {
+            // zstd 文档规定发生错误后 dstream 状态未定义，下一次必须 reset。
+            hasActiveFrame = false
+            throw error
+        }
     }
 
     private fun initDStream() {
@@ -86,9 +111,12 @@ internal actual class ZstdStreamDecompressor {
                 outBuffer.size = outputChunkSize.toULong()
                 outBuffer.pos = 0u
 
-                // 与官方 streaming_decompression 示例一致：内层循环把本次输入全部消费掉，
-                // 输出缓冲区满了就换下一块继续（自动处理多 frame 拼接流）。
-                while (inBuffer.pos < inBuffer.size) {
+                // 与官方 streaming_decompression 示例一致：把本次输入全部消费掉，
+                // 并在输入已经消费完但 zstd 仍有内部输出时继续 flush。只检查
+                // input.pos 会漏掉最后一个 block，下一次复用 dstream 时就可能触发
+                // checksum 错误。
+                var flushPending = false
+                while (inBuffer.pos < inBuffer.size || flushPending) {
                     outBuffer.pos = 0u
                     val ret = ZSTD_decompressStream(dstream, outBuffer.ptr, inBuffer.ptr)
                     if (ZSTD_isError(ret) != 0u) {
@@ -106,6 +134,11 @@ internal actual class ZstdStreamDecompressor {
                     }
                     if (ret == 0u.toULong()) {
                         frameComplete = true
+                        flushPending = false
+                    } else if (inBuffer.pos >= inBuffer.size) {
+                        // 没有输入、没有输出且 ret 仍大于 0，说明输入是不完整的；
+                        // 返回 false 交给上层决定是否继续追加数据，避免空转。
+                        flushPending = produced > 0
                     }
                 }
             }
