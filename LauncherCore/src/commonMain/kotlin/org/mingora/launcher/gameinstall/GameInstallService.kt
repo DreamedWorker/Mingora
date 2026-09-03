@@ -26,9 +26,9 @@ internal class GameInstallService(
     private val pendingControls = mutableMapOf<GameId, TaskControl>()
     private val taskStates = mutableMapOf<GameId, String>()
     private val taskProgress = mutableMapOf<GameId, Pair<Long, Long>>()
-    private val taskScope = CoroutineScope(Dispatchers.Default)
-    // 一个文件对应多个 HTTP chunk。限制并发请求数，避免一次安装创建数百个
-    // NSURLSession task，导致 CDN/系统连接池大量超时。
+    // 任务使用的协程作用域，默认将任务放入 IO 线程，在计算摘要等操作时注意切换
+    private val taskScope = CoroutineScope(Dispatchers.IO)
+    // 按读取到的 CPU 最大核心数限制每次下载的 chunk 文件数 -- (总文件数 / 核心数 = 遍历次数)
     private val downloadLimiter = Semaphore(DeviceUtil.getCpuCoreCount())
 
     private enum class TaskControl {
@@ -58,16 +58,25 @@ internal class GameInstallService(
      * Swift -> Kotlin interop 场景下抛出 “Game installation must run in a coroutine”。
      */
     suspend fun startDownloadTask(gameId: GameId) {
-        val task = taskLock.withLock {
+        taskLock.withLock {
             val task = currentTask[gameId]
                 ?: throw IllegalArgumentException("The task of this game does not exists")
-            check(activeJobs[gameId] == null) { "The task of this game is already running" }
-            task
+            check(taskStates[gameId] == "preparing") { "The task of this game is not ready to start" }
+            startTaskLocked(gameId, task)
         }
+    }
+
+    /**
+     * Must be called while [taskLock] is held. Registering and starting the job
+     * in the same critical section makes start linearizable with pause/resume/
+     * terminate: no control operation can observe a task between those steps.
+     */
+    private fun startTaskLocked(gameId: GameId, task: GameInstallTask) {
+        check(activeJobs[gameId] == null) { "The task of this game is already running" }
         val job = taskScope.launch(start = CoroutineStart.LAZY) {
             runDownloadTask(gameId, task)
         }
-        taskLock.withLock { activeJobs[gameId] = job }
+        activeJobs[gameId] = job
         job.start()
     }
 
@@ -92,28 +101,52 @@ internal class GameInstallService(
                 task.installPath.resolve(task.gameConfig.exeFileName).path,
             )
         } catch (error: CancellationException) {
-            val control = taskLock.withLock { pendingControls[gameId] }
-            if (control == null) {
+            var reportError = false
+            taskLock.withLock {
+                // Read the control and apply its state transition atomically.
+                // Otherwise terminate() could overwrite a pause request between
+                // these two operations and the cancellation would be reported as
+                // the wrong final state.
+                when (pendingControls[gameId]) {
+                    TaskControl.Pause -> {
+                        taskStates[gameId] = "paused"
+                        taskProgress[gameId] = taskProgress(task)
+                    }
+                    TaskControl.Terminate -> {
+                        taskStates[gameId] = "terminated"
+                        taskProgress[gameId] = taskProgress(task)
+                        currentTask.remove(gameId)
+                    }
+                    null -> {
+                        reportError = true
+                        taskStates[gameId] = "failed"
+                        taskProgress[gameId] = taskProgress(task)
+                        currentTask.remove(gameId)
+                    }
+                }
+            }
+            if (reportError) {
                 println(error)
                 task.onError()
             }
-            taskLock.withLock {
-                if (control == TaskControl.Pause) {
-                    taskStates[gameId] = "paused"
-                    taskProgress[gameId] = taskProgress(task)
-                } else if (control == TaskControl.Terminate) {
-                    taskStates[gameId] = "terminated"
-                    taskProgress[gameId] = taskProgress(task)
-                    currentTask.remove(gameId)
-                }
-            }
         } catch (error: Throwable) {
-            error.printStackTrace()
-            task.onError()
+            var reportError = false
             taskLock.withLock {
-                taskStates[gameId] = "failed"
+                // A terminate request is a command, not an implementation
+                // detail of the cancellation mechanism. Preserve it even if the
+                // operation failed before observing cancellation.
+                if (pendingControls[gameId] == TaskControl.Terminate) {
+                    taskStates[gameId] = "terminated"
+                } else {
+                    taskStates[gameId] = "failed"
+                    reportError = true
+                }
                 taskProgress[gameId] = taskProgress(task)
                 currentTask.remove(gameId)
+            }
+            if (reportError) {
+                error.printStackTrace()
+                task.onError()
             }
         } finally {
             taskLock.withLock {
@@ -128,36 +161,47 @@ internal class GameInstallService(
     suspend fun pauseDownloadTask(gameId: GameId) {
         val job = taskLock.withLock {
             check(currentTask.containsKey(gameId)) { "The task of this game does not exists" }
-            activeJobs[gameId]?.also { pendingControls[gameId] = TaskControl.Pause }
+            activeJobs[gameId]?.also {
+                // Termination wins if both commands race. A later pause must
+                // never turn an already requested termination into a pause.
+                if (pendingControls[gameId] != TaskControl.Terminate) {
+                    pendingControls[gameId] = TaskControl.Pause
+                }
+            } ?: run {
+                // This covers a task inserted but not yet started. It is now
+                // paused atomically, so a concurrent start cannot launch it.
+                taskStates[gameId] = "paused"
+                null
+            }
         }
         job?.cancelAndJoin()
     }
 
     suspend fun resumeDownloadTask(gameId: GameId) {
-        val task = taskLock.withLock {
-            currentTask[gameId]
-                ?: throw IllegalArgumentException("The task of this game does not exists")
-        }
         taskLock.withLock {
+            val task = currentTask[gameId]
+                ?: throw IllegalArgumentException("The task of this game does not exists")
             check(activeJobs[gameId] == null) { "The task of this game is already running" }
+            check(taskStates[gameId] == "paused") { "The task of this game is not paused" }
+            pendingControls.remove(gameId)
+            (task as? GameBrandNewInstallTask)?.resetProgress()
+            startTaskLocked(gameId, task)
         }
-        (task as? GameBrandNewInstallTask)?.resetProgress()
-        startDownloadTask(gameId)
     }
 
     suspend fun terminateDownloadTask(gameId: GameId) {
         val job = taskLock.withLock {
             check(currentTask.containsKey(gameId)) { "The task of this game does not exists" }
-            activeJobs[gameId]?.also { pendingControls[gameId] = TaskControl.Terminate }
-        }
-        if (job != null) {
-            job.cancelAndJoin()
-        } else {
-            taskLock.withLock {
+            activeJobs[gameId]?.also {
+                // Termination wins over a racing pause request.
+                pendingControls[gameId] = TaskControl.Terminate
+            } ?: run {
                 currentTask.remove(gameId)
                 taskStates[gameId] = "terminated"
+                null
             }
         }
+        job?.cancelAndJoin()
     }
 
     suspend fun getStatus(gameId: GameId, isInstalled: Boolean): GameInstallStatus = taskLock.withLock {
