@@ -1,10 +1,15 @@
 package org.mingora.launcher.wine
 
 import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.delete
 import io.github.vinceglb.filekit.exists
 import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.resolve
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import org.mingora.launcher.Consts
 import org.mingora.launcher.core.util.CommandExecutor
+import org.mingora.launcher.core.util.FileDownloader
 
 /**
  * 本地已安装 Wine 的包装器，涵盖主要使用场景的操作封装。
@@ -15,7 +20,8 @@ import org.mingora.launcher.core.util.CommandExecutor
 internal class WineWrapper(
     private val wineInstallDir: PlatformFile,
     private val prefixDir: PlatformFile,
-) {
+) : KoinComponent {
+    private val downloader by inject<FileDownloader>()
     private val wineBin: PlatformFile
         get() = wineInstallDir.resolve("wine/bin/wine")
 
@@ -73,4 +79,27 @@ internal class WineWrapper(
     fun toWinePath(absPath: String): String = "Z:${absPath.replace("/", "\\")}"
 
     private fun genEnvVars(): Map<String, String> = mapOf("WINEPREFIX" to prefixDir.path)
+
+    suspend fun ensureInterExists(): String {
+        val file = wineInstallDir.resolve("wine/bin/jadeite.exe")
+        if (file.exists()) {
+            return file.path
+        }
+        val url = "https://codeberg.org/mkrsym1/jadeite/releases/download/v5.0.1/v5.0.1.zip"
+        val pack = wineInstallDir.resolve("wine/bin/jadeite.zip")
+        if (pack.exists()) {
+            pack.delete()
+        }
+        downloader.download(url, pack).getOrThrow()
+        CommandExecutor.exec(
+            "/usr/bin/ditto",
+            isSudo = false,
+            args = listOf("-x", "-k", pack.path, wineInstallDir.resolve("wine/bin").path),
+        )
+        if (file.exists()) {
+            return file.path
+        } else {
+            throw Exception("Cannot load supporting layer for this game.")
+        }
+    }
 }

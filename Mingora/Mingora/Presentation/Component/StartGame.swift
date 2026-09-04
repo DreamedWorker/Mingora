@@ -162,7 +162,9 @@ struct StartGame: View {
 
         case .completed:
             Button {
-                // 游戏启动逻辑待接入。
+                Task { @MainActor in
+                    try? await GameService.shared.startGame(gameId: GameId.Companion.shared.convertId(id: selectedGame))
+                }
             } label: {
                 Label("启动游戏", systemImage: "play.fill")
                     .frame(maxWidth: .infinity)
