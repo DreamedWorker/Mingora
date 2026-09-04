@@ -13,6 +13,8 @@ import org.mingora.launcher.hyp.models.GameChannelSDK
 import org.mingora.launcher.hyp.models.GameConfig
 import org.mingora.launcher.hyp.models.GameSophonChunkBuild
 import org.mingora.launcher.hyp.models.GameSophonChunkPatch
+import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -37,6 +39,11 @@ internal sealed interface GameInstallTask {
 
     val taskFiles: MutableList<TaskFile>
 
+    @OptIn(ExperimentalAtomicApi::class)
+    val currentDownloadedBytesAtomic: AtomicLong
+
+    var totalDownloadedBytes: Long
+
     /**
      * 按照对应的游戏安装模式，将游戏本体和选择的语音包相关的文件转换到封装格式
      * */
@@ -45,23 +52,19 @@ internal sealed interface GameInstallTask {
 
     fun increaseProgress(progress: Long)
 
-    fun onSuccess()
-
-    fun onError()
-
     // 公共实现
 
     /**
      * 从清单列表中获取可用的 Chunks 清单
      * */
     fun availableChunkManifests(build: GameSophonChunkBuild) =
-        build.manifests.filter { it.matchingField in AUDIO_MATCHING_FIELDS || it.matchingField == "game" || it.matchingField.isBlank() }
+        build.manifests.filter { it.matchingField == audioLanguage.code || it.matchingField == "game" || it.matchingField.isBlank() }
 
     /**
      * 从清单列表中获取可用的 Patch Chunks 清单
      * */
     fun availablePatchManifests(patch: GameSophonChunkPatch) =
-        patch.manifests.filter { it.matchingField in AUDIO_MATCHING_FIELDS || it.matchingField == "game" || it.matchingField == "patch" }
+        patch.manifests.filter { it.matchingField == audioLanguage.code || it.matchingField == "game" || it.matchingField == "patch" }
 
     /**
      * 从 config.ini 中读取当前安装的游戏版本

@@ -13,8 +13,10 @@ import org.mingora.launcher.core.GameId
 import org.mingora.launcher.core.GameId.Companion.isBilibiliServer
 import org.mingora.launcher.core.preference.LauncherPreference
 import org.mingora.launcher.core.util.DeviceUtil
+import org.mingora.launcher.gameinstall.task.AddExistingGameTask
 import org.mingora.launcher.gameinstall.task.GameBrandNewInstallTask
 import org.mingora.launcher.gameinstall.task.GameInstallTask
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.cancellation.CancellationException
 
 internal class GameInstallService(
@@ -82,15 +84,17 @@ internal class GameInstallService(
 
     private suspend fun runDownloadTask(gameId: GameId, task: GameInstallTask) {
         try {
-            task.installPath.createDirectories()
+            if (task is GameBrandNewInstallTask) {
+                task.installPath.createDirectories()
+            }
             GameAudioLanguage.setAudioLanguage(task)
             task.prepareFiles()
             taskLock.withLock { taskStates[gameId] = "downloading" }
 
             when(task) {
                 is GameBrandNewInstallTask -> executeInstallTaskAsync(task)
+                is AddExistingGameTask -> executeInstallTaskAsync(task)
             }
-            task.onSuccess()
             taskLock.withLock {
                 taskStates[gameId] = "completed"
                 taskProgress[gameId] = taskProgress(task)
@@ -127,7 +131,6 @@ internal class GameInstallService(
             }
             if (reportError) {
                 println(error)
-                task.onError()
             }
         } catch (error: Throwable) {
             var reportError = false
@@ -146,7 +149,6 @@ internal class GameInstallService(
             }
             if (reportError) {
                 error.printStackTrace()
-                task.onError()
             }
         } finally {
             taskLock.withLock {
@@ -215,13 +217,12 @@ internal class GameInstallService(
         GameInstallStatus(state, downloaded, total)
     }
 
+    @OptIn(ExperimentalAtomicApi::class)
     private fun taskProgress(task: GameInstallTask): Pair<Long, Long> {
-        val installTask = task as? GameBrandNewInstallTask
-            ?: return 0L to 0L
-        return installTask.currentDownloadedBytes to installTask.totalDownloadedBytes
+        return task.currentDownloadedBytesAtomic.load() to task.totalDownloadedBytes
     }
 
-    private suspend fun executeInstallTaskAsync(task: GameBrandNewInstallTask) {
+    private suspend fun executeInstallTaskAsync(task: GameInstallTask) {
         executeInstallTaskDownloadModeChunk(task)
         // macOS 下打开千星沙箱当前会导致游戏白屏，需要强行停止并在下次启动时快速退出编辑器页面；
         // 而当前仅 Genshin 需要下载 WPF 包，因此跳过该步骤。

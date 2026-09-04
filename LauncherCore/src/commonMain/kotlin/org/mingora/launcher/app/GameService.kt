@@ -4,6 +4,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.createDirectories
 import io.github.vinceglb.filekit.exists
+import io.github.vinceglb.filekit.resolve
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mingora.launcher.core.GameId
@@ -12,7 +13,9 @@ import org.mingora.launcher.core.preference.LauncherPreference
 import org.mingora.launcher.gameinstall.GameAudioLanguage
 import org.mingora.launcher.gameinstall.GameInstallService
 import org.mingora.launcher.gameinstall.GameInstallType
+import org.mingora.launcher.gameinstall.task.AddExistingGameTask
 import org.mingora.launcher.gameinstall.task.GameBrandNewInstallTask
+import org.mingora.launcher.gameinstall.task.GameInstallTask
 import org.mingora.launcher.hyp.HYPClient
 
 object GameService : KoinComponent {
@@ -41,6 +44,7 @@ object GameService : KoinComponent {
             GameInstallType.Install -> generateBrandNewInstallTask(gameId, installPath, audioLanguage)
             GameInstallType.Update -> generateBrandNewInstallTask(gameId, installPath, audioLanguage)
             GameInstallType.PreDownload -> generateBrandNewInstallTask(gameId, installPath, audioLanguage)
+            GameInstallType.RegistryExisting -> generateBrandNewInstallTask(gameId, installPath, audioLanguage)
         }
         gameInstallService.insertTask(task)
         gameInstallService.startDownloadTask(gameId)
@@ -65,7 +69,7 @@ object GameService : KoinComponent {
         gameId: GameId,
         installPath: PlatformFile,
         audioLanguage: GameAudioLanguage,
-    ): GameBrandNewInstallTask {
+    ): GameInstallTask {
         val gameConfig = hypClient.getSingleGameConfig(gameId, gameId.launcher).getOrThrow()
         val gameBranch = hypClient.getSingleGameBranch(gameId, gameId.launcher).getOrThrow()
         val channelSDKs = hypClient.getGameChannelSDK(gameId.launcher).getOrNull()
@@ -73,6 +77,18 @@ object GameService : KoinComponent {
             requireNotNull(channelSDKs) {
                 "Channel SDKs not set, which is not allowed when installing the channel-sever game."
             }
+        }
+        if (installPath.exists() && installPath.resolve(gameConfig.exeFileName).exists()) {
+            return AddExistingGameTask(
+                installPath = installPath,
+                audioLanguage = audioLanguage,
+                gameId = gameId,
+                gameConfig = gameConfig,
+                gameBranch = gameBranch,
+                latestGameVersion = gameBranch.main.tag,
+                channelSDK = channelSDKs,
+                localVersionSophonChunkBuild = null
+            )
         }
         return GameBrandNewInstallTask(
             installPath = installPath,
